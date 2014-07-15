@@ -53,20 +53,25 @@ $app->post('/users', function() use($app, $users){
   $body = $app->request->getBody();
   $data = json_decode($body, true);
 
+  // Se crea el arreglo asociativo con los campos requeridos.
   $user = array(
     '_id' => $data['_id'],
     'name' => $data['name'],
     'last_name' => $data['last_name'],
     'document' => $data['document']);
+
   try {
-  $users->insert($user);
-    
-  $app->response->headers->set('Location', '/users/' . $data['_id']);
-  $app->response->setStatus(201);
+    // Se trata de insertar un usuario a la base de datos.
+    $users->insert($user);
+      
+    // Se referencia donde quedó el recurso en la cabecera Location.
+    $app->response->headers->set('Location', '/users/' . $data['_id']);
+    // Se responde el código de status apropiado.
+    $app->response->setStatus(201);
   } catch (Exception $e) {
+    // En caso de no poder ingresar el registro por ser repetido se resonde el código apropiado.
     $app->response->setStatus(409);
   }
-
 });
 
 // Servicio para actualizar el usuario indicado por parámetro.
