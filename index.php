@@ -30,13 +30,14 @@ $users = $connection->slim_simple_api->users;
 // Servicio que retorna la colección de usuarios.
 $app->get('/users', function() use($users) {
   // Se retorna la colección de usuarios.
- echo json_encode($users->find());
+  $users_iterator = $users->find();
+ echo json_encode(iterator_to_array($users_iterator, false));
 });
 
 // Servicio que retorna el usuario indicado por parámetro.
 $app->get('/users/:id', function($id) use($app, $users) {
   // Se busca un usuario por el identificador que llega por parámetro.
-  $user = $users->findOne(array('_id' => $id));
+  $user = $users->findOne(array('_id' => intval($id)));
 
   if($user == null) {
     // Si el valor es nulo indica que el recurso no existe.
