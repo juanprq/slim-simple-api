@@ -2,6 +2,10 @@
 // Carga de librerías de composer
 require 'vendor/autoload.php';
 
+ini_set('display_errors',1);
+ini_set('display_startup_errors',1);
+error_reporting(-1);
+
 // Se cargan los parámetros iniciales de configuración para slim.
 $config = require_once __DIR__ . '/config.php';
 
@@ -11,44 +15,64 @@ $app = new \Slim\Slim($config['slim']);
 // Se configura la aplicación para que responda en formato JSON.
 $app->response->headers->set('Content-Type', 'application/json');
 
-// Inyección de la colección de usuarios.
-$app->users = array(
-  1 => array('name' => 'Juan', 'last_name' => 'Ramírez', 'document' => '1094891516'),
-  2 => array('name' => 'Daniel', 'last_name' => 'Arbelaez', 'document' => '1094673845' ),
-  3 => array('name' => 'José', 'last_name' => 'Ortiz', 'document' => '1094627938' ),
-  4 => array('name' => 'Carlos', 'last_name' => 'Ariza', 'document' => '1090341289' ),
-  5 => array('name' => 'Yamit', 'last_name' => 'Ospina', 'document' => '1087649032' ));
+// Conexión y referenciación a la colección en base dedatos.
+$connection = new MongoClient('localhost');
+$users = $connection->slim_simple_api->users;
+
+// Asignación de variable para simulación de recurso.
+// $users = array(
+//   1 => array('name' => 'Juan', 'last_name' => 'Ramírez', 'document' => '1094891516'),
+//   2 => array('name' => 'Daniel', 'last_name' => 'Arbelaez', 'document' => '1094673845' ),
+//   3 => array('name' => 'José', 'last_name' => 'Ortiz', 'document' => '1094627938' ),
+//   4 => array('name' => 'Carlos', 'last_name' => 'Ariza', 'document' => '1090341289' ),
+//   5 => array('name' => 'Yamit', 'last_name' => 'Ospina', 'document' => '1087649032' ));
 
 // Servicio que retorna la colección de usuarios.
-$app->get('/users', function() use($app) {
- echo json_encode($app->users);
+$app->get('/users', function() use($users) {
+  // Se retorna la colección de usuarios.
+ echo json_encode($users->find());
 });
 
 // Servicio que retorna el usuario indicado por parámetro.
-$app->get('/users/:id', function($id) use($app) {
-  try {
-    echo json_encode($app->users[$id]);
-  } catch (Exception $e) {
-    $app->response->setStatus(404);
+$app->get('/users/:id', function($id) use($app, $users) {
+  // Se busca un usuario por el identificador que llega por parámetro.
+  $user = $users->findOne(array('_id' => $id));
+
+  if($user == null) {
+    // Si el valor es nulo indica que el recurso no existe.
+    $app->response->setStatus(404);  
+  } else {
+    // Si el usuario existe se pone en formato JSON y se retorna como contenido.
+    echo json_encode($user);
   }
 });
 
 // Servicio que crea un usuario en el sistema.
-$app->post('/users', function() use($app){
+$app->post('/users', function() use($app, $users){
+  // Se referencia el cuerpo del mensaje.
   $body = $app->request->getBody();
-  $data = json_encode($body, true);
-  $id = $data['id']
+  $data = json_decode($body, true);
 
-  $user = array('name' => $data[$id]]['name'],
-    'last_name' => $data[$id]['last_name'],
-    'document' => $data[$id]['document']);
-  $app->users[$data[$id]] = $user;
+  $user = array(
+    '_id' => $data['_id'],
+    'name' => $data['name'],
+    'last_name' => $data['last_name'],
+    'document' => $data['document']);
+  try {
+  $users->insert($user);
+    
+  $app->response->headers->set('Location', '/users/' . $data['_id']);
+  $app->response->setStatus(201);
+  } catch (Exception $e) {
+    $app->response->setStatus(409);
+  }
+
 });
 
 // Servicio para actualizar el usuario indicado por parámetro.
 $app->put('/users/:id', function($id) use($app){
   $body = $app->request->getBody();
-  $data = json_encode($body, true);
+  $data = json_decode($body, true);
 
   $user = array('name' => $data['name'],
     'last_name' => $data['last_name'],
