@@ -2,10 +2,6 @@
 // Carga de librerías de composer
 require 'vendor/autoload.php';
 
-ini_set('display_errors',1);
-ini_set('display_startup_errors',1);
-error_reporting(-1);
-
 // Se cargan los parámetros iniciales de configuración para slim.
 $config = require_once __DIR__ . '/config.php';
 
@@ -18,14 +14,6 @@ $app->response->headers->set('Content-Type', 'application/json');
 // Conexión y referenciación a la colección en base dedatos.
 $connection = new MongoClient('localhost');
 $app->users = $connection->slim_simple_api->users;
-
-// Asignación de variable para simulación de recurso.
-// $users = array(
-//   1 => array('name' => 'Juan', 'last_name' => 'Ramírez', 'document' => '1094891516'),
-//   2 => array('name' => 'Daniel', 'last_name' => 'Arbelaez', 'document' => '1094673845' ),
-//   3 => array('name' => 'José', 'last_name' => 'Ortiz', 'document' => '1094627938' ),
-//   4 => array('name' => 'Carlos', 'last_name' => 'Ariza', 'document' => '1090341289' ),
-//   5 => array('name' => 'Yamit', 'last_name' => 'Ospina', 'document' => '1087649032' ));
 
 // Servicio que retorna la colección de usuarios.
 $app->get('/users', function() use($app) {
@@ -92,12 +80,16 @@ $app->put('/users/:id', function($id) use($app){
 
 // Servicio para remover el usuario indicado del sistema.
 $app->delete('/users/:id', function($id) use($app){
+  // Se castea el parámetro a entero
   $id = intval($id);
+  // Se trata de cargar el usuario desde base de datos.
   $user = $app->users->findOne(array('_id' => $id));
 
   if($user == null) {
+    // Si el usuario no existe se retorna un 404.
     $app->response->setStatus(404);
   } else {
+    // Si el usuario existe se remueve y se retorna la representación del objeto que fué eliminado.
     $app->users->remove(array('_id' => intval($id)));
     echo json_encode($user);
   }
