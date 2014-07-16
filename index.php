@@ -17,7 +17,7 @@ $app->response->headers->set('Content-Type', 'application/json');
 
 // Conexión y referenciación a la colección en base dedatos.
 $connection = new MongoClient('localhost');
-$users = $connection->slim_simple_api->users;
+$app->users = $connection->slim_simple_api->users;
 
 // Asignación de variable para simulación de recurso.
 // $users = array(
@@ -28,16 +28,16 @@ $users = $connection->slim_simple_api->users;
 //   5 => array('name' => 'Yamit', 'last_name' => 'Ospina', 'document' => '1087649032' ));
 
 // Servicio que retorna la colección de usuarios.
-$app->get('/users', function() use($users) {
+$app->get('/users', function() use($app) {
   // Se retorna la colección de usuarios.
-  $users_iterator = $users->find();
+  $users_iterator = $app->users->find();
  echo json_encode(iterator_to_array($users_iterator, false));
 });
 
 // Servicio que retorna el usuario indicado por parámetro.
-$app->get('/users/:id', function($id) use($app, $users) {
+$app->get('/users/:id', function($id) use($app) {
   // Se busca un usuario por el identificador que llega por parámetro.
-  $user = $users->findOne(array('_id' => intval($id)));
+  $user = $app->users->findOne(array('_id' => intval($id)));
 
   if($user == null) {
     // Si el valor es nulo indica que el recurso no existe.
@@ -49,7 +49,7 @@ $app->get('/users/:id', function($id) use($app, $users) {
 });
 
 // Servicio que crea un usuario en el sistema.
-$app->post('/users', function() use($app, $users){
+$app->post('/users', function() use($app){
   // Se referencia el cuerpo del mensaje.
   $body = $app->request->getBody();
   $data = json_decode($body, true);
@@ -63,7 +63,7 @@ $app->post('/users', function() use($app, $users){
 
   try {
     // Se trata de insertar un usuario a la base de datos.
-    $users->insert($user);
+    $app->users->insert($user);
       
     // Se referencia donde quedó el recurso en la cabecera Location.
     $app->response->headers->set('Location', '/users/' . $data['_id']);
@@ -77,18 +77,30 @@ $app->post('/users', function() use($app, $users){
 
 // Servicio para actualizar el usuario indicado por parámetro.
 $app->put('/users/:id', function($id) use($app){
+  // Se referencia el cuerpo del mensaje.
   $body = $app->request->getBody();
+  // Se parsea el contenido JSON a un arreglo asociativo en php.
   $data = json_decode($body, true);
 
+  // Se referencian los valores necesarios en la variable user.
   $user = array('name' => $data['name'],
     'last_name' => $data['last_name'],
     'document' => $data['document']);
-  $app->users[$id] = $user;
+
+  $app->users->update(array('_id' => intval($id)), array('$set' => $user));
 });
 
 // Servicio para remover el usuario indicado del sistema.
 $app->delete('/users/:id', function($id) use($app){
-  unset($app->users[$id]);
+  $id = intval($id);
+  $user = $app->users->findOne(array('_id' => $id));
+
+  if($user == null) {
+    $app->response->setStatus(404);
+  } else {
+    $app->users->remove(array('_id' => intval($id)));
+    echo json_encode($user);
+  }
 });
 
 // Se corre la aplicación
